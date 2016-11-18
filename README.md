@@ -1,5 +1,7 @@
 # steam_auth
 
+Fork of [steam_go](https://github.com/solovev/steam_go) to use [fasthttp](https://github.com/valyala/fasthttp)
+
 ### Example
 ```
 package main

@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -26,29 +28,38 @@ type OpenId struct {
 	data      url.Values
 }
 
-func NewOpenId(r *http.Request) *OpenId {
+func NewOpenId(r *fasthttp.RequestCtx) (*OpenId, error) {
 	id := new(OpenId)
 
 	proto := "http://"
-	if r.TLS != nil {
+	if r.IsTLS() {
 		proto = "https://"
 	}
-	id.root = proto + r.Host
+	id.root = proto + string(r.Host())
 
-	uri := r.RequestURI
-	if i := strings.Index(uri, "openid"); i != -1 {
+	uri := r.RequestURI()
+	if i := strings.Index(string(uri), "openid"); i != -1 {
 		uri = uri[0 : i-1]
 	}
-	id.returnUrl = id.root + uri
+	id.returnUrl = id.root + string(uri)
 
-	switch r.Method {
-	case "POST":
-		id.data = r.Form
-	case "GET":
-		id.data = r.URL.Query()
+	if r.IsPost() {
+		args := r.PostArgs()
+		data, err := url.ParseQuery(string(args.QueryString()))
+		if err != nil {
+			return nil, errors.New("Error parsing post arg string")
+		}
+		id.data = data
+
+	} else if r.IsGet() {
+		data, err := url.ParseQuery(string(uri))
+		if err != nil {
+			return nil, errors.New("Error in parseQuery")
+		}
+		id.data = data
 	}
 
-	return id
+	return id, nil
 }
 
 func (id OpenId) AuthUrl() string {
@@ -112,12 +123,12 @@ func (id *OpenId) ValidateAndGetId() (string, error) {
 		return "", errors.New("Unable validate openId.")
 	}
 
-	openIdUrl := id.data.Get("openid.claimed_id")
-	if !validation_regexp.MatchString(openIdUrl) {
+	openIDURL := id.data.Get("openid.claimed_id")
+	if !validation_regexp.MatchString(openIDURL) {
 		return "", errors.New("Invalid steam id pattern.")
 	}
 
-	return digits_extraction_regexp.ReplaceAllString(openIdUrl, ""), nil
+	return digits_extraction_regexp.ReplaceAllString(openIDURL, ""), nil
 }
 
 func (id OpenId) ValidateAndGetUser(apiKey string) (*PlayerSummaries, error) {
