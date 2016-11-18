@@ -3,36 +3,30 @@
 Fork of [steam_go](https://github.com/solovev/steam_go) to use [fasthttp](https://github.com/valyala/fasthttp)
 
 ### Example
-```
-package main
-
+``` go
 import (
 	"net/http"
 
-	"github.com/solovev/steam_go"
+	"github.com/mbcrocci/steam_go"
 )
 
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	opId := steam_auth.NewOpenId(r)
-	switch opId.Mode() {
-	case "":
-		http.Redirect(w, r, opId.AuthUrl(), 301)
-	case "cancel":
-		w.Write([]byte("Authorization cancelled"))
-	default:
-		steamId, err := opId.ValidateAndGetId()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-		//
-		//	Do smth with steamId
-		//
-		w.Write([]byte(steamId))
+func loginHandle(ctx *fasthttp.RequestCtx)
+	opID, err := steam_auth.NewOpenId(ctx)
+	if err != nil {
+		// handle the error properly
+		return
 	}
-}
-
-func main() {
-	http.HandleFunc("/login", loginHandler)
-	http.ListenAndServe(":8080", nil)
+	switch opID.Mode() {
+	case "":
+		ctx.Redirect(opID.AuthUrl(), 301)
+	case "cancel":
+		fmt.FPrintf(ctx, "Authorization cancelled")
+	default:
+		steamID, err := opID.ValidateAndGetId()
+		if err != nil {
+			// do something instead of returning
+			return
+		}
+	}
 }
 ```
